@@ -1,0 +1,13 @@
+# Condor processing of SUN Saliency stuff
+Universe=vanilla
+Executable=sunsaliency.sh
+Log=sun.$(Arguments).log
+Output=sun.$(Arguments).out
+Error=sun.$(Arguments).err
+Notification=Complete
+Notify_user=dfitch@wisc.edu
+getenv=True
+Arguments=1019.jpg
+Queue
+Arguments=1022.jpg
+Queue

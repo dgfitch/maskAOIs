@@ -32,12 +32,14 @@ this script generates a CSV containing:
         F. out_r, out_g, out_b: RGB means for original image OUTSIDE mask
         G. out_complexity: complexity OUTSIDE mask
     5. Saliency luminance
-    6. Saliency: (As with AOI, 0 is all shapes in the OBT file,
+    6. Saliency AOI dotproduct sum
+    7. Saliency: (As with AOI, 0 is all shapes in the OBT file,
                   1-4 are individual masks)
         B. in_lum: luminance of saliency map INSIDE mask
         C. out_lum: luminance of saliency map OUTSIDE mask
-    6. SunSaliency luminance
-    6. SunSaliency: (As with AOI, 0 is all shapes in the OBT file,
+    8. SunSaliency luminance
+    9. SunSaliency AOI dotproduct sum
+    10. SunSaliency: (As with AOI, 0 is all shapes in the OBT file,
                   1-4 are individual masks)
         B. in_lum: luminance of SUN saliency map INSIDE mask
         C. out_lum: luminance of SUN saliency map OUTSIDE mask
@@ -55,7 +57,7 @@ DEBUG = False
 AOI_DIR='/study/reference/public/IAPS/IAPS/IAPS_2008_1-20_800x600BMP/IAPS_2008_AOIs/'
 IMG_DIR='/study/midus/IAPS2005bmp/'
 SALIENCY_DIR='/home/fitch/aoi/saliency/'
-SUN_SALIENCY_DIR='/home/fitch/aoi/sun_saliency/'
+SUN_SALIENCY_DIR='/home/fitch/aoi/sunsaliency/'
 
 
 #A wrapper function to check if a string is a number (and account for negatives)
@@ -222,7 +224,7 @@ def results_for_mask(withColors, original, key, mask):
             key + '_out_lum': luminance(stats_out.mean) / 256.0,
         }
 
-def do_saliency(path, prefix, pictureName, results)
+def do_saliency(original, masks, path, prefix, pictureName, results):
     saliency = Image.open(path + pictureName + ".png")
     if saliency.mode != "RGBA":
         saliency = saliency.convert("RGBA")
@@ -276,8 +278,8 @@ def write_stats(writer, filename, pictureName):
 
     # And finally we get the saliency image and resize it and do a bunch of garbage with it and the AOI masks
 
-    do_saliency(SALIENCY_DIR, "saliency", pictureName, results)
-    do_saliency(SUN_SALIENCY_DIR, "sun_saliency", pictureName, results)
+    do_saliency(original, masks, SALIENCY_DIR, "saliency", pictureName, results)
+    do_saliency(original, masks, SUN_SALIENCY_DIR, "sun_saliency", pictureName, results)
 
 
     writer.writerow(results)
