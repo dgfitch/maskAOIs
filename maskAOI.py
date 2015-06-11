@@ -195,16 +195,16 @@ def luminance(c):
     else:
         return lum
 
-def complexity(img):
-    name = 'temp.jpg'
+def complexity(pictureName, key, img):
+    name = "masks/{0}-{1}.jpg".format(pictureName, key)
     img.save(name, quality=80, format="JPEG", optimize=True, progressive=True)
     size = os.path.getsize(name)
-    os.remove(name)
+    #os.remove(name)
     return size
 
 
 
-def results_for_mask(withColors, original, key, mask):
+def results_for_mask(withColors, original, pictureName, key, mask):
     # We also want the area outside of the mask
     mask_inverted = ImageOps.invert(mask)
     stats_mask = stat(mask)
@@ -225,12 +225,12 @@ def results_for_mask(withColors, original, key, mask):
             key + '_in_r': stats_in.mean[0] / 256.0,
             key + '_in_g': stats_in.mean[1] / 256.0,
             key + '_in_b': stats_in.mean[2] / 256.0,
-            key + '_in_complexity': complexity(stats_in_image),
+            key + '_in_complexity': complexity(pictureName, key + "in", stats_in_image),
             key + '_out_lum': luminance(stats_out.mean) / 256.0,
             key + '_out_r': stats_out.mean[0] / 256.0,
             key + '_out_g': stats_out.mean[1] / 256.0,
             key + '_out_b': stats_out.mean[2] / 256.0,
-            key + '_out_complexity': complexity(stats_out_image),
+            key + '_out_complexity': complexity(pictureName, key + "out", stats_out_image),
         }
     else:
         return {
@@ -247,7 +247,7 @@ def do_saliency(original, masks, path, prefix, pictureName, results):
     results[prefix + '_lum'] = luminance(stats_saliency.mean) / 256.0
 
     for i, mask in zip(MASK_NAMES, masks):
-        stuff = results_for_mask(False, saliency, prefix + i, mask)
+        stuff = results_for_mask(False, saliency, pictureName, prefix + i, mask)
         results.update(stuff)
 
     saliency_bw = saliency.convert("L")
@@ -282,11 +282,11 @@ def write_stats(writer, filename, pictureName):
         'orig_r': stats_orig.mean[0] / 256.0,
         'orig_g': stats_orig.mean[1] / 256.0,
         'orig_b': stats_orig.mean[2] / 256.0,
-        'orig_complexity': complexity(original),
+        'orig_complexity': complexity(pictureName, "original", original),
     }
 
     for i, mask in zip(MASK_NAMES, masks):
-        stuff = results_for_mask(True, original, 'aoi' + i, mask)
+        stuff = results_for_mask(True, original, pictureName, 'aoi' + i, mask)
         results.update(stuff)
 
     # And finally we get the saliency image and resize it and do a bunch of garbage with it and the AOI masks
