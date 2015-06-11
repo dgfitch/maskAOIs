@@ -58,7 +58,7 @@ ImageFile.MAXBLOCK = 1048576
 DEBUG = False
 
 AOI_DIR='/study/reference/public/IAPS/IAPS/IAPS_2008_1-20_800x600BMP/IAPS_2008_AOIs/'
-IMG_DIR='/study/midus/IAPS2005bmp/'
+IMG_DIR='/study/midus/IAPS2005png/'
 SALIENCY_DIR='/home/fitch/aoi/saliency/'
 SUN_SALIENCY_DIR='/home/fitch/aoi/sunsaliency/'
 MASK_NAMES = ["0", "E", "1", "2", "3", "4"]
@@ -92,6 +92,13 @@ def getCoordinates(picturename):
                 aoiList.append(content)
     return aoiList
 
+
+def drawAOI(aoi, i, d):
+    if aoi[0] == 1:
+        return drawOneRect(aoi[1:5], i, d)
+    else:
+        return drawOneEllipse(aoi[1:5], i, d)
+
 # Function to display the AOI as masks
 def createAOIMasks(pictureName, size):
     if DEBUG: print("Displaying AOIs for picture {0}".format(pictureName))
@@ -101,18 +108,15 @@ def createAOIMasks(pictureName, size):
 
     masks = []
 
-    def drawAOI(aoi, i, d):
-        if aoi[0] == 1:
-            return drawOneRect(aoi[1:5], img, draw)
-        else:
-            return drawOneEllipse(aoi[1:5], img, draw)
-
     # L is grayscale
     img = Image.new("L", size, 0)
     draw = ImageDraw.Draw(img)
 
+    usedAOIs = []
     for aoi in aoiList:
-        drawAOI(aoi, img, draw)
+        used = drawAOI(aoi, img, draw)
+        if used:
+            usedAOIs.append(aoi)
 
     masks.append(img)
 
@@ -120,7 +124,7 @@ def createAOIMasks(pictureName, size):
     emo = Image.new("L", size, 0)
     emo_draw = ImageDraw.Draw(emo)
 
-    for aoi in aoiList[1:]:
+    for aoi in usedAOIs[1:]:
         drawAOI(aoi, emo, emo_draw)
 
     masks.append(emo)
@@ -191,9 +195,14 @@ def luminance(c):
     lum = r*0.2126 + g*0.7152 + b*0.0722
     if len(c) == 4:
         # Multiply by alpha... kind of hokey but should work for most cases
-        return lum * (c[3] / 255.0)
+        result = lum * (c[3] / 255.0)
     else:
-        return lum
+        result = lum
+
+    if math.isnan(result):
+        return 0.0
+    else:
+        return result
 
 def complexity(pictureName, key, img):
     name = "masks/{0}-{1}.jpg".format(pictureName, key)
@@ -213,30 +222,33 @@ def results_for_mask(withColors, original, pictureName, key, mask):
 
     # Complexity uses the resultant image saved as jpg, so we need to prepare some actual images
 
-    stats_in_image = Image.new('RGB', original.size, "black")
+    stats_in_image = Image.new('RGBA', original.size, "black")
     stats_in_image.paste(original, mask=mask)
-    stats_out_image = Image.new('RGB', original.size, "black")
+    stats_out_image = Image.new('RGBA', original.size, "black")
     stats_out_image.paste(original, mask=mask_inverted)
 
-    if withColors:
-        return {
-            key + '_mask_lum': stats_mask.mean[0] / 256.0,
-            key + '_in_lum': luminance(stats_in.mean) / 256.0,
-            key + '_in_r': stats_in.mean[0] / 256.0,
-            key + '_in_g': stats_in.mean[1] / 256.0,
-            key + '_in_b': stats_in.mean[2] / 256.0,
-            key + '_in_complexity': complexity(pictureName, key + "in", stats_in_image),
-            key + '_out_lum': luminance(stats_out.mean) / 256.0,
-            key + '_out_r': stats_out.mean[0] / 256.0,
-            key + '_out_g': stats_out.mean[1] / 256.0,
-            key + '_out_b': stats_out.mean[2] / 256.0,
-            key + '_out_complexity': complexity(pictureName, key + "out", stats_out_image),
-        }
-    else:
-        return {
-            key + '_in_lum': luminance(stats_in.mean) / 256.0,
-            key + '_out_lum': luminance(stats_out.mean) / 256.0,
-        }
+    try:
+        if withColors:
+            return {
+                key + '_mask_lum': stats_mask.mean[0] / 256.0,
+                key + '_in_lum': luminance(stats_in.mean) / 256.0,
+                key + '_in_r': stats_in.mean[0] / 256.0,
+                key + '_in_g': stats_in.mean[1] / 256.0,
+                key + '_in_b': stats_in.mean[2] / 256.0,
+                key + '_in_complexity': complexity(pictureName, key + "in", stats_in_image),
+                key + '_out_lum': luminance(stats_out.mean) / 256.0,
+                key + '_out_r': stats_out.mean[0] / 256.0,
+                key + '_out_g': stats_out.mean[1] / 256.0,
+                key + '_out_b': stats_out.mean[2] / 256.0,
+                key + '_out_complexity': complexity(pictureName, key + "out", stats_out_image),
+            }
+        else:
+            return {
+                key + '_in_lum': luminance(stats_in.mean) / 256.0,
+                key + '_out_lum': luminance(stats_out.mean) / 256.0,
+            }
+    except ZeroDivisionError:
+        return {}
 
 def do_saliency(original, masks, path, prefix, pictureName, results):
     saliency = Image.open(path + pictureName + ".png")
@@ -271,7 +283,7 @@ def write_stats(writer, filename, pictureName):
     masks = createAOIMasks(pictureName, original.size)
 
     if masks == None:
-        print(filename)
+        print("No masks found in: " + filename)
         return False
 
     stats_orig = stat(original)
@@ -354,10 +366,10 @@ if len(sys.argv) <= 1:
         writer.writerow(dict(zip(fields,fields)))
 
         for filename in sorted(os.listdir(IMG_DIR)):
-            if not ".bmp" in filename:
+            if not ".png" in filename:
                 continue
 
-            pictureName = filename.replace(".bmp", "")
+            pictureName = filename.replace(".png", "")
 
             try:
                 write_stats(writer, filename, pictureName)
