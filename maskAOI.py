@@ -118,18 +118,18 @@ def createAOIMasks(pictureName, size):
 
     # Now the "emotional" masks, index 2 and up
     emo = Image.new("L", size, 0)
-    draw = ImageDraw.Draw(emo)
+    emo_draw = ImageDraw.Draw(emo)
 
     for aoi in aoiList[1:]:
-        drawAOI(aoi, emo, draw)
+        drawAOI(aoi, emo, emo_draw)
 
     masks.append(emo)
 
     # Now we draw each shape individually, only appending if they were correctly drawn and not "whole image" masks
     for aoi in aoiList:
         individual = Image.new("L", size, 0)
-        draw = ImageDraw.Draw(individual)
-        success = drawAOI(aoi, individual, draw)
+        individual_draw = ImageDraw.Draw(individual)
+        success = drawAOI(aoi, individual, individual_draw)
         if success:
             masks.append(individual)
 
