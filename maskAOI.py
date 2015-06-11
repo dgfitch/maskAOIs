@@ -208,7 +208,7 @@ def complexity(pictureName, key, img):
     name = "masks/{0}-{1}.jpg".format(pictureName, key)
     img.save(name, quality=80, format="JPEG", optimize=True, progressive=True)
     size = os.path.getsize(name)
-    #os.remove(name)
+    os.remove(name)
     return size
 
 
