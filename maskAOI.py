@@ -22,6 +22,7 @@ this script generates a CSV containing:
     2. original image: mean red, green, and blue values
     3. original image: complexity 
     4. AOI: (0 is all shapes in the OBT file, minus "entire file" shapes,
+             E is all shapes 2 and greater if there are any,
              1-4 are the individual masks in the order they are in the OBT,
              for each of these things we give:)
         A. mask_lum: luminance of mask
@@ -34,12 +35,14 @@ this script generates a CSV containing:
     5. Saliency luminance
     6. Saliency AOI dotproduct sum
     7. Saliency: (As with AOI, 0 is all shapes in the OBT file,
+                  E is shapes 2 and greater in the OBT file,
                   1-4 are individual masks)
         B. in_lum: luminance of saliency map INSIDE mask
         C. out_lum: luminance of saliency map OUTSIDE mask
     8. SunSaliency luminance
     9. SunSaliency AOI dotproduct sum
     10. SunSaliency: (As with AOI, 0 is all shapes in the OBT file,
+                  E is shapes 2 and greater in the OBT file,
                   1-4 are individual masks)
         B. in_lum: luminance of SUN saliency map INSIDE mask
         C. out_lum: luminance of SUN saliency map OUTSIDE mask
@@ -58,6 +61,8 @@ AOI_DIR='/study/reference/public/IAPS/IAPS/IAPS_2008_1-20_800x600BMP/IAPS_2008_A
 IMG_DIR='/study/midus/IAPS2005bmp/'
 SALIENCY_DIR='/home/fitch/aoi/saliency/'
 SUN_SALIENCY_DIR='/home/fitch/aoi/sunsaliency/'
+MASK_NAMES = ["0", "E", "1", "2", "3", "4"]
+
 
 
 #A wrapper function to check if a string is a number (and account for negatives)
@@ -96,28 +101,37 @@ def createAOIMasks(pictureName, size):
 
     masks = []
 
+    def drawAOI(aoi, i, d):
+        if aoi[0] == 1:
+            return drawOneRect(aoi[1:5], img, draw)
+        else:
+            return drawOneEllipse(aoi[1:5], img, draw)
+
     # L is grayscale
     img = Image.new("L", size, 0)
     draw = ImageDraw.Draw(img)
 
     for aoi in aoiList:
-        if aoi[0] == 1:
-            drawOneRect(aoi[1:5], img, draw)
-        else:
-            drawOneEllipse(aoi[1:5], img, draw)
+        drawAOI(aoi, img, draw)
 
     masks.append(img)
 
+    # Now the "emotional" masks, index 2 and up
+    emo = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(emo)
+
+    for aoi in aoiList[1:]:
+        drawAOI(aoi, emo, draw)
+
+    masks.append(emo)
+
     # Now we draw each shape individually, only appending if they were correctly drawn and not "whole image" masks
     for aoi in aoiList:
-        img = Image.new("L", size, 0)
-        draw = ImageDraw.Draw(img)
-        if aoi[0] == 1:
-            if drawOneRect(aoi[1:5], img, draw):
-                masks.append(img)
-        else:
-            if drawOneEllipse(aoi[1:5], img, draw):
-                masks.append(img)
+        individual = Image.new("L", size, 0)
+        draw = ImageDraw.Draw(individual)
+        success = drawAOI(aoi, individual, draw)
+        if success:
+            masks.append(individual)
 
     return masks
 
@@ -232,9 +246,8 @@ def do_saliency(original, masks, path, prefix, pictureName, results):
     stats_saliency = stat(saliency)
     results[prefix + '_lum'] = luminance(stats_saliency.mean) / 256.0
 
-
-    for i, mask in enumerate(masks):
-        stuff = results_for_mask(False, saliency, prefix + str(i), mask)
+    for i, mask in zip(MASK_NAMES, masks):
+        stuff = results_for_mask(False, saliency, prefix + i, mask)
         results.update(stuff)
 
     saliency_bw = saliency.convert("L")
@@ -254,7 +267,7 @@ def write_stats(writer, filename, pictureName):
         original = original.convert("RGBA")
 
     # First, draw the AOI masks in white on black
-    # This returns a list, the first mask is ALL AOIs, the rest are each individual shape
+    # This returns a list, the first mask is ALL AOIs, the second is the "emotional" ones >=2, and the rest are each individual shape
     masks = createAOIMasks(pictureName, original.size)
 
     if masks == None:
@@ -272,8 +285,8 @@ def write_stats(writer, filename, pictureName):
         'orig_complexity': complexity(original),
     }
 
-    for i, mask in enumerate(masks):
-        stuff = results_for_mask(True, original, 'aoi' + str(i), mask)
+    for i, mask in zip(MASK_NAMES, masks):
+        stuff = results_for_mask(True, original, 'aoi' + i, mask)
         results.update(stuff)
 
     # And finally we get the saliency image and resize it and do a bunch of garbage with it and the AOI masks
@@ -319,21 +332,21 @@ if len(sys.argv) <= 1:
             'orig_complexity',
         ]
 
-        for i in range(0,4):
+        for i in MASK_NAMES:
             for f in per_mask_fields:
                 fields.append("aoi{0}{1}".format(i,f))
 
         fields.append("saliency_aoi_dotproduct_sum")
         fields.append("saliency_lum")
 
-        for i in range(0,4):
+        for i in MASK_NAMES:
             for f in per_saliency_fields:
                 fields.append("saliency{0}{1}".format(i,f))
 
         fields.append("sun_saliency_aoi_dotproduct_sum")
         fields.append("sun_saliency_lum")
 
-        for i in range(0,4):
+        for i in MASK_NAMES:
             for f in per_saliency_fields:
                 fields.append("sun_saliency{0}{1}".format(i,f))
 
