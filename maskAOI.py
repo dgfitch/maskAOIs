@@ -95,9 +95,9 @@ def getCoordinates(picturename):
 
 def drawAOI(aoi, i, d):
     if aoi[0] == 1:
-        return drawOneRect(aoi[1:5], i, d)
+        drawOneRect(aoi[1:5], i, d)
     else:
-        return drawOneEllipse(aoi[1:5], i, d)
+        drawOneEllipse(aoi[1:5], i, d)
 
 # Function to display the AOI as masks
 def createAOIMasks(pictureName, size):
@@ -112,30 +112,26 @@ def createAOIMasks(pictureName, size):
     img = Image.new("L", size, 0)
     draw = ImageDraw.Draw(img)
 
-    usedAOIs = []
     for aoi in aoiList:
-        used = drawAOI(aoi, img, draw)
-        if used:
-            usedAOIs.append(aoi)
+        drawAOI(aoi, img, draw)
 
     masks.append(img)
 
-    # Now the "emotional" masks, index 2 and up
+    # Now the "emotional" masks, index 2 and up theoretically
     emo = Image.new("L", size, 0)
     emo_draw = ImageDraw.Draw(emo)
 
-    for aoi in usedAOIs[1:]:
+    for aoi in aoiList[1:]:
         drawAOI(aoi, emo, emo_draw)
 
     masks.append(emo)
 
-    # Now we draw each shape individually, only appending if they were correctly drawn and not "whole image" masks
+    # Now we draw each mask individually
     for aoi in aoiList:
         individual = Image.new("L", size, 0)
         individual_draw = ImageDraw.Draw(individual)
-        success = drawAOI(aoi, individual, individual_draw)
-        if success:
-            masks.append(individual)
+        drawAOI(aoi, individual, individual_draw)
+        masks.append(individual)
 
     return masks
 
@@ -153,12 +149,7 @@ def drawOneEllipse(aoi, img, draw):
     RightX=cx+aoi[2]
     TopY=cy-aoi[3]
     BottomY=cy+aoi[3]
-    if 3.1415*aoi[2]*aoi[3] >= imgArea*0.9 :
-        if DEBUG: print("     Ellipse covers whole image, not presenting. Note, this is likely an error!")
-        return False
-    else:
-        draw.ellipse(((LeftX,TopY),(RightX,BottomY)), fill="white", outline="white")
-        return True
+    draw.ellipse(((LeftX,TopY),(RightX,BottomY)), fill="white", outline="white")
 	
 def drawOneRect(aoi, img, draw):
     #Draw one rectangle on the figure given
@@ -170,12 +161,7 @@ def drawOneRect(aoi, img, draw):
     RightX=aoi[2]
     if DEBUG: print("     Top:{0}, Bottom:{1}, Left:{2}, Right: {3}".format(TopY, BottomY, LeftX, RightX))
     imgArea=imgDim[0]*imgDim[1]
-    if abs((RightX-LeftX)*(TopY-BottomY)) >= imgArea*0.9 :
-        if DEBUG: print("     Rectangle represents whole image, not presenting.")
-        return False
-    else:
-        draw.rectangle(((LeftX,TopY),(RightX,BottomY)), fill="white", outline="white")
-        return True
+    draw.rectangle(((LeftX,TopY),(RightX,BottomY)), fill="white", outline="white")
 
 def stat(img, mask=None):
     if mask == None:
@@ -208,7 +194,7 @@ def complexity(pictureName, key, img):
     name = "masks/{0}-{1}.jpg".format(pictureName, key)
     img.save(name, quality=80, format="JPEG", optimize=True, progressive=True)
     size = os.path.getsize(name)
-    os.remove(name)
+    #os.remove(name)
     return size
 
 
