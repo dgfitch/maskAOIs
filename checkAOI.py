@@ -66,17 +66,17 @@ def checkAOIMasks(pictureName, size):
 
     masks = []
 
-    foundLarge = False
+    foundLarge = 0
     for aoi in aoiList:
         used = checkAOI(aoi, size)
         if not used:
-            foundLarge = True
+            foundLarge += 1
 
     if len(aoiList) < 2:
         print("Found {0} AOIs in {1}".format(len(aoiList), pictureName))
 
-    if not foundLarge:
-        print("Did not find large mask in {0}".format(pictureName))
+    if foundLarge != 1:
+        print("Found {0} large masks in {1}".format(foundLarge, pictureName))
 
 
 		
