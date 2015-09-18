@@ -3,50 +3,7 @@
 """
 maskAOI.py
 
-Dan Fitch 20150226
-
-Heavily based on work by Andy Schoen in viewAOI.py
-
-Generates statistics based on AOI images.
-
-All luminances are weighted as in YUV.
-
-Complexity is the filesize in bytes after saving as a JPG. 
-Due to stippling and other image artifacts in some of the files,
-I would NOT rely too much on this number.
-
-Given a directory, assuming there are matching OBT and saliency masks,
-this script generates a CSV containing:
-
-    1. original image: luminance
-    2. original image: mean red, green, and blue values
-    3. original image: complexity 
-    4. AOI: (0 is all shapes in the OBT file, minus "entire file" shapes,
-             E is all shapes 2 and greater if there are any,
-             1-4 are the individual masks in the order they are in the OBT,
-             for each of these things we give:)
-        A. mask_lum: luminance of mask
-        B. in_lum: luminance of original image INSIDE mask
-        C. out_lum: luminance of original image OUTSIDE mask
-        D. in_r, in_g, in_b: RGB means for original image INSIDE mask
-        E. in_complexity: complexity INSIDE mask
-        F. out_r, out_g, out_b: RGB means for original image OUTSIDE mask
-        G. out_complexity: complexity OUTSIDE mask
-    5. Saliency luminance
-    6. Saliency AOI dotproduct sum
-    7. Saliency: (As with AOI, 0 is all shapes in the OBT file,
-                  E is shapes 2 and greater in the OBT file,
-                  1-4 are individual masks)
-        B. in_lum: luminance of saliency map INSIDE mask
-        C. out_lum: luminance of saliency map OUTSIDE mask
-    8. SunSaliency luminance
-    9. SunSaliency AOI dotproduct sum
-    10. SunSaliency: (As with AOI, 0 is all shapes in the OBT file,
-                  E is shapes 2 and greater in the OBT file,
-                  1-4 are individual masks)
-        B. in_lum: luminance of SUN saliency map INSIDE mask
-        C. out_lum: luminance of SUN saliency map OUTSIDE mask
-        
+Dan Fitch 20150618
 """
 
 from __future__ import print_function
@@ -64,8 +21,7 @@ SUN_SALIENCY_DIR='/home/fitch/aoi/sunsaliency/'
 MASK_NAMES = ["0", "E", "1", "2", "3", "4"]
 
 
-
-#A wrapper function to check if a string is a number (and account for negatives)
+# A wrapper function to check if a string is a number (and account for negatives)
 def RepresentsInt(s):
 	try: 
 		int(s)
@@ -298,91 +254,68 @@ def write_stats(writer, filename, pictureName):
     return True
 
 
-if len(sys.argv) <= 1:
-    print("No picture name given, calculating stats")
 
-    with open('stats.csv', 'wb') as csvfile:
-        per_mask_fields = [
-            '_mask_lum',
-            '_in_lum',
-            '_in_r',
-            '_in_g',
-            '_in_b',
-            '_in_complexity',
-            '_out_lum',
-            '_out_r',
-            '_out_g',
-            '_out_b',
-            '_out_complexity',
-        ]
+with open('stats.csv', 'wb') as csvfile:
+    per_mask_fields = [
+        '_mask_lum',
+        '_in_lum',
+        '_in_r',
+        '_in_g',
+        '_in_b',
+        '_in_complexity',
+        '_out_lum',
+        '_out_r',
+        '_out_g',
+        '_out_b',
+        '_out_complexity',
+    ]
 
-        per_saliency_fields = [
-            '_in_lum',
-            '_out_lum',
-        ]
+    per_saliency_fields = [
+        '_in_lum',
+        '_out_lum',
+    ]
 
-        fields = [
-            'image_name',
-            'orig_lum',
-            'orig_r',
-            'orig_g',
-            'orig_b',
-            'orig_complexity',
-        ]
+    fields = [
+        'image_name',
+        'orig_lum',
+        'orig_r',
+        'orig_g',
+        'orig_b',
+        'orig_complexity',
+    ]
 
-        for i in MASK_NAMES:
-            for f in per_mask_fields:
-                fields.append("aoi{0}{1}".format(i,f))
+    for i in MASK_NAMES:
+        for f in per_mask_fields:
+            fields.append("aoi{0}{1}".format(i,f))
 
-        fields.append("saliency_aoi_dotproduct_sum")
-        fields.append("saliency_lum")
+    fields.append("saliency_aoi_dotproduct_sum")
+    fields.append("saliency_lum")
 
-        for i in MASK_NAMES:
-            for f in per_saliency_fields:
-                fields.append("saliency{0}{1}".format(i,f))
+    for i in MASK_NAMES:
+        for f in per_saliency_fields:
+            fields.append("saliency{0}{1}".format(i,f))
 
-        fields.append("sun_saliency_aoi_dotproduct_sum")
-        fields.append("sun_saliency_lum")
+    fields.append("sun_saliency_aoi_dotproduct_sum")
+    fields.append("sun_saliency_lum")
 
-        for i in MASK_NAMES:
-            for f in per_saliency_fields:
-                fields.append("sun_saliency{0}{1}".format(i,f))
+    for i in MASK_NAMES:
+        for f in per_saliency_fields:
+            fields.append("sun_saliency{0}{1}".format(i,f))
 
-        writer = csv.DictWriter(csvfile, fieldnames=fields)
-        writer.writerow(dict(zip(fields,fields)))
+    writer = csv.DictWriter(csvfile, fieldnames=fields)
+    writer.writerow(dict(zip(fields,fields)))
 
-        for filename in sorted(os.listdir(IMG_DIR)):
-            if not ".png" in filename:
-                continue
+    for filename in sorted(os.listdir(IMG_DIR)):
+        if not ".png" in filename:
+            continue
 
-            pictureName = filename.replace(".png", "")
+        pictureName = filename.replace(".png", "")
 
-            try:
-                write_stats(writer, filename, pictureName)
+        try:
+            write_stats(writer, filename, pictureName)
 
-            except:
-                print("Error on file " + pictureName, file=sys.stderr)
-                raise
-
-
-else:
-    # NOTE: Individual mask test, probably don't need this any more
-
-    pictureName = sys.argv[1]
-
-    original = Image.open(IMG_DIR + pictureName + ".png")
-
-    # L is grayscale
-    mask = Image.new("L", original.size, 0)
-    drawer = ImageDraw.Draw(mask)
-
-    # Draw the AOI on the mask in white on black
-    displayAOI(pictureName, mask, drawer)
-
-    mask.save(pictureName + "_mask.png")
-
-    original.putalpha(mask)
-    original.save(pictureName + "_masked.png")
-
+        except:
+            print("Error on file " + pictureName, file=sys.stderr)
+            raise
 
 
